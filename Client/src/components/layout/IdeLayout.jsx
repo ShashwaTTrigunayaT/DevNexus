@@ -1,85 +1,85 @@
-import React from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import useLayoutStore from '../../store/useLayoutStore';
+import React, { useState } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import useLayoutStore from "../../store/useLayoutStore";
 
-// Import all the UI Components we built
-import FileExplorer from '../FileExplorer';
-import Terminal from '../Terminal';
-import AIChatPanel from '../AIChatPanel'; // Ensure you created this file!
+import Sidebar from "../Sidebar";
+import FileExplorer from "../FileExplorer";
+import CollaboratorList from "../CollaboratorList";
+import Terminal from "../Terminal";
+import AIChatPanel from "../AIChatPanel";
 
-const IdeLayout = ({ children }) => {
-  // Get toggle states from the store
+// ✅ 1. Accept 'terminalRef' here
+const IdeLayout = ({ children, roomId, project, user, onRun, code, onFileSelect, terminalRef }) => {
   const { isSidebarOpen, isTerminalOpen, isAIPanelOpen } = useLayoutStore();
+  const [activeTab, setActiveTab] = useState("files");
 
   return (
-    // Main Container: Subtracts navbar height (3.5rem) to fit screen exactly
-    <div className="h-[calc(100vh-3.5rem)] w-full bg-background overflow-hidden flex text-text">
+    <div className="h-[calc(100vh-3.5rem)] w-full bg-background overflow-hidden flex text-text font-sans">
       
-      {/* 1. HORIZONTAL GROUP (Sidebar | Main Content | AI Panel) */}
+      <Sidebar
+        roomId={roomId}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onRun={onRun}
+      />
+
       <PanelGroup direction="horizontal" autoSaveId="devnexus-layout-main">
-        
-        {/* LEFT SIDEBAR (File Explorer) */}
         {isSidebarOpen && (
           <>
-            <Panel defaultSize={15} minSize={10} maxSize={25} collapsible className="bg-surface border-r border-white/5 flex flex-col">
-              <FileExplorer />
+            <Panel defaultSize={15} minSize={10} maxSize={25} collapsible className="bg-[#0a0a0f] border-r border-white/5 flex flex-col">
+              {activeTab === "files" ? (
+                <FileExplorer 
+                   roomId={roomId}
+                   project={project} 
+                   onFileSelect={onFileSelect} 
+                />
+              ) : (
+                <CollaboratorList user={user} project={project} />
+              )}
             </Panel>
             <ResizeHandle />
           </>
         )}
 
-        {/* CENTER AREA (Editor + Terminal) */}
-        <Panel minSize={30}>
-          
-          {/* 2. VERTICAL GROUP (Code Editor / Terminal) */}
-          <PanelGroup direction="vertical" autoSaveId="devnexus-layout-vertical">
-            
-            {/* TOP: Code Editor (The 'children' prop is the Monaco Editor) */}
-            <Panel minSize={30} className="relative bg-[#0a0a0f]">
-               {children} 
+        <Panel defaultSize={60} minSize={30}>
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={isTerminalOpen ? 70 : 100} className="relative bg-[#050507]">
+              {children}
             </Panel>
-
-            {/* BOTTOM: Terminal */}
             {isTerminalOpen && (
               <>
                 <ResizeHandle orientation="vertical" />
                 <Panel defaultSize={30} minSize={10} maxSize={60} className="bg-[#0d0d14] border-t border-white/5">
-                  <Terminal />
+                  {/* ✅ 2. Pass the 'ref' here so EditorPage can control it */}
+                  <Terminal 
+                      ref={terminalRef}
+                      roomId={roomId} 
+                      project={project} 
+                      user={user} 
+                   />
                 </Panel>
               </>
             )}
-
           </PanelGroup>
         </Panel>
 
-        {/* RIGHT SIDEBAR (AI Assistant) */}
         {isAIPanelOpen && (
           <>
             <ResizeHandle />
-            <Panel defaultSize={25} minSize={20} maxSize={40} className="bg-surface border-l border-white/5 backdrop-blur-sm">
-               <AIChatPanel />
+            <Panel defaultSize={25} minSize={20} maxSize={40} className="bg-[#0a0a0f] border-l border-white/5">
+              <AIChatPanel roomId={roomId} project={project} code={code} />
             </Panel>
           </>
         )}
-
       </PanelGroup>
     </div>
   );
 };
 
-// --- Helper Component for the Drag Handles ---
-const ResizeHandle = ({ orientation = "horizontal" }) => {
-  return (
-    <PanelResizeHandle 
-      className={`flex items-center justify-center bg-background hover:bg-primary/20 transition-colors
-        ${orientation === 'horizontal' ? 'w-1.5 h-full cursor-col-resize' : 'h-1.5 w-full cursor-row-resize'}
-      `}
-    >
-      <div className={`bg-white/10 rounded-full 
-        ${orientation === 'horizontal' ? 'h-8 w-1' : 'w-8 h-1'}
-      `} />
-    </PanelResizeHandle>
-  );
-};
+const ResizeHandle = ({ orientation = "horizontal" }) => (
+  <PanelResizeHandle className={`flex items-center justify-center bg-[#050507] hover:bg-primary/20 transition-colors z-10 ${orientation === "horizontal" ? "w-1.5 h-full cursor-col-resize hover:w-2" : "h-1.5 w-full cursor-row-resize hover:h-2"}`}>
+    <div className={`bg-white/10 rounded-full ${orientation === "horizontal" ? "w-0.5 h-8" : "h-0.5 w-8"}`} />
+  </PanelResizeHandle>
+);
 
 export default IdeLayout;

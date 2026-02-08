@@ -7,10 +7,31 @@
 }
 
 body {
-  background-color: #0a0a0f; /* Deep Space Black */
+  background-color: #0a0a0f; 
   color: #e2e8f0;
   margin: 0;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+  /* Changed height to min-height so it can expand */
+  min-height: 100vh;
+  width: 100%;
+  /* Changed overflow to auto so the scrollbar appears when needed */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Optional: This makes the scrollbar look much better in dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
 }

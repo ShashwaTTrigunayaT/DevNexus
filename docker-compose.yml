@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: piston_api
+    restart: always
+    privileged: true
+    user: root  # Force it to run as root to bypass permission checks
+    volumes:
+      - piston_packages:/piston/packages # Named volume (internal storage)
+    tmpfs:
+      - /tmp
+    ports:
+      - "2000:2000"
+
+  redis:
+    image: redis:alpine
+    container_name: devnexus_redis
+    ports:
+      - "6379:6379"
+
+# Define the internal storage volume here
+volumes:
+  piston_packages:

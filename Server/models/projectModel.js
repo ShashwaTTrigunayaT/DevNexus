@@ -19,10 +19,19 @@ const projectSchema = new mongoose.Schema({
         type: String,
         default: 'Hello World!'
     },
-    Language: {
+    language: {
         type: String,
         default: 'javascript'
         
+    },
+    fileTree: {
+        type: Object, // Stores the JSON tree structure
+        default: {
+            id: "root",
+            name: "root",
+            type: "folder",
+            children: []
+        }
     },
     collaborators: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -32,6 +41,6 @@ const projectSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-});
+}, { timestamps: true });
 module.exports = mongoose.model('project', projectSchema);
    

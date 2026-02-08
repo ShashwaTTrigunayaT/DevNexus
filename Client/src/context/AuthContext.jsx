@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext();
 
@@ -6,24 +6,51 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is logged in (simulated persistence)
+  // ✅ Load user from backend using cookie token
   useEffect(() => {
-    const storedUser = localStorage.getItem('devnexus_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/user", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          setUser(data.user || null);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMe();
   }, []);
 
+  // ✅ call after successful signin
   const login = (userData) => {
-    // Simulate an API call
     setUser(userData);
-    localStorage.setItem('devnexus_user', JSON.stringify(userData));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('devnexus_user');
+  // ✅ logout from backend + clear frontend state
+  const logout = async () => {
+    try {
+      await fetch("http://localhost:5000/user/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      // ignore
+    } finally {
+      setUser(null);
+      localStorage.removeItem("userInfo"); // optional
+      localStorage.removeItem("token"); // optional
+    }
   };
 
   return (

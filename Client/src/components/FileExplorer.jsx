@@ -1,138 +1,138 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Folder, FolderOpen, FileCode, FileJson, ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import FileTreeNode from "./FileTreeNode";
+import { v4 as uuidv4 } from "uuid"; 
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-const FileExplorer = () => {
-  const navigate = useNavigate();
-  const [openSections, setOpenSections] = useState({ files: true, users: true });
+const FileExplorer = ({ project, roomId, onFileSelect }) => {
+  const [fileTree, setFileTree] = useState(null);
 
-  // Mock Connected Users
-  const users = [
-    { id: 1, username: 'Shashwat', color: '#ec4899' },
-    { id: 2, username: 'Ravan', color: '#3b82f6' },
-    { id: 3, username: 'You', color: '#10b981' }, 
-  ];
+  useEffect(() => {
+    if (project) {
+      let treeToSet = project.fileTree;
+      // Sync Root Name with Project Title
+      if (treeToSet) {
+        treeToSet = JSON.parse(JSON.stringify(treeToSet));
+        treeToSet.name = project.title; 
+      } else {
+        treeToSet = { id: "root", name: project.title, type: "folder", children: [] };
+      }
+      setFileTree(treeToSet);
+    }
+  }, [project]);
 
-  const initialFiles = {
-    name: 'root', type: 'folder', isOpen: true,
-    children: [
-      {
-        name: 'src', type: 'folder', isOpen: true,
-        children: [
-          { name: 'App.jsx', type: 'file', ext: 'jsx' },
-          { name: 'main.jsx', type: 'file', ext: 'jsx' },
-        ]
-      },
-      { name: 'package.json', type: 'file', ext: 'json' },
-    ]
+  const saveTreeToBackend = async (newTree) => {
+    try {
+      setFileTree(newTree); 
+      await fetch(`http://localhost:5000/project/${roomId}/tree`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fileTree: newTree })
+      });
+    } catch (err) {
+      toast.error("Failed to save changes");
+    }
   };
 
-  const toggleSection = (section) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  // --- RECURSIVE OPERATIONS ---
+
+  // 1. ADD
+  const handleAddNode = (parentId, name, type) => {
+    if (!fileTree) return;
+    const newTree = JSON.parse(JSON.stringify(fileTree));
+    const addRecursive = (node) => {
+      if (node.id === parentId && node.type === "folder") {
+        node.children.push({
+          id: uuidv4(),
+          name,
+          type,
+          children: type === "folder" ? [] : null,
+          content: type === "file" ? "" : null
+        });
+        return true;
+      }
+      if (node.children) {
+        for (let child of node.children) {
+          if (addRecursive(child)) return true;
+        }
+      }
+      return false;
+    };
+    addRecursive(newTree);
+    saveTreeToBackend(newTree);
   };
 
-  return (
-    <div className="h-full flex flex-col select-none">
-       
-       {/* FILES SECTION */}
-       <div className="border-b border-white/5 pb-2">
-          <div 
-            onClick={() => toggleSection('files')}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-gray-400 hover:text-white cursor-pointer"
-          >
-             {openSections.files ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-             EXPLORER
-          </div>
-          {openSections.files && (
-             <div className="px-2">
-                <FileSystemItem item={initialFiles} />
-             </div>
-          )}
-       </div>
+  // 2. DELETE
+  const handleDeleteNode = (nodeId) => {
+    if (!fileTree || nodeId === "root") return;
+    const newTree = JSON.parse(JSON.stringify(fileTree));
+    const deleteRecursive = (node) => {
+      if (!node.children) return false;
+      const index = node.children.findIndex(child => child.id === nodeId);
+      if (index !== -1) {
+        node.children.splice(index, 1);
+        return true;
+      }
+      for (let child of node.children) {
+        if (deleteRecursive(child)) return true;
+      }
+      return false;
+    };
+    deleteRecursive(newTree);
+    saveTreeToBackend(newTree);
+  };
 
-       {/* CONNECTED USERS SECTION */}
-       <div className="flex-1 mt-2">
-          <div 
-            onClick={() => toggleSection('users')}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-gray-400 hover:text-white cursor-pointer"
-          >
-             {openSections.users ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-             CONNECTED USERS ({users.length})
-          </div>
+  // 3. RENAME (NEW)
+  const handleRenameNode = (nodeId, newName) => {
+    if (!fileTree) return;
+    const newTree = JSON.parse(JSON.stringify(fileTree));
+    
+    // If renaming root, we might want to trigger project rename API, 
+    // but for now let's just update the tree view.
+    if (nodeId === "root") {
+        newTree.name = newName;
+        saveTreeToBackend(newTree);
+        return;
+    }
 
-          {openSections.users && (
-            <div className="px-4 py-2 space-y-2">
-              {users.map(user => (
-                <div 
-                  key={user.id} 
-                  onClick={() => navigate(`/user/${user.username.toLowerCase()}`)}
-                  className="flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-1.5 rounded-lg transition-all"
-                >
-                  <div 
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
-                    style={{ backgroundColor: user.color }}
-                  >
-                    {user.username.slice(0, 2).toUpperCase()}
-                  </div>
-                  
-                  <div className="flex flex-col">
-                     <span className="text-sm text-gray-300 group-hover:text-white transition-colors leading-none mb-1">{user.username}</span>
-                     <span className="text-[9px] text-green-400 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span>
-                        Online
-                     </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-       </div>
-    </div>
-  );
-};
+    const renameRecursive = (node) => {
+        if (node.id === nodeId) {
+            node.name = newName;
+            return true;
+        }
+        if (node.children) {
+            for (let child of node.children) {
+                if (renameRecursive(child)) return true;
+            }
+        }
+        return false;
+    };
 
-// Sub-component for Files
-const FileSystemItem = ({ item }) => {
-  const [isOpen, setIsOpen] = useState(item.isOpen || false);
+    renameRecursive(newTree);
+    saveTreeToBackend(newTree);
+  };
 
-  if (item.type === 'file') {
-    return (
-      <div className="flex items-center gap-2 px-2 py-1 hover:bg-white/5 rounded cursor-pointer text-sm text-gray-400 hover:text-white transition-colors pl-6">
-        <FileIcon ext={item.ext} />
-        <span>{item.name}</span>
-      </div>
-    );
-  }
+  if (!fileTree) return <div className="p-4 text-gray-500"><Loader2 className="animate-spin"/></div>;
 
   return (
-    <div>
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-1 py-1 hover:bg-white/5 rounded cursor-pointer text-sm text-gray-300 transition-colors"
-      >
-        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        {isOpen ? <FolderOpen size={16} className="text-blue-400" /> : <Folder size={16} className="text-blue-400" />}
-        <span className="font-medium truncate">{item.name === 'root' ? 'devnexus-project' : item.name}</span>
+    <div className="h-full flex flex-col text-gray-300">
+      <div className="p-3 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 bg-[#0a0a0f]">
+        Explorer
       </div>
-      
-      {isOpen && (
-        <div className="pl-4 border-l border-white/5 ml-2">
-          {item.children?.map((child, index) => (
-            <FileSystemItem key={index} item={child} />
-          ))}
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto pt-2 pl-2">
+        <FileTreeNode 
+            node={fileTree} 
+            depth={0}
+            onSelect={onFileSelect} 
+            onAddFolder={(id, name) => handleAddNode(id, name, "folder")}
+            onAddFile={(id, name) => handleAddNode(id, name, "file")}
+            onDelete={handleDeleteNode}
+            onRename={handleRenameNode} // ✅ Passed Down
+        />
+      </div>
     </div>
   );
-};
-
-const FileIcon = ({ ext }) => {
-  switch (ext) {
-    case 'jsx': return <FileCode size={15} className="text-cyan-400" />;
-    case 'js': return <FileCode size={15} className="text-yellow-400" />;
-    case 'json': return <FileJson size={15} className="text-orange-400" />;
-    default: return <FileCode size={15} className="text-gray-400" />;
-  }
 };
 
 export default FileExplorer;

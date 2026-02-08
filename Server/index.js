@@ -1,26 +1,44 @@
+require('dotenv').config(); // 1. MUST BE AT THE VERY TOP
 const express = require('express');
 const connectDB = require('./conf/db');
 const cors = require('cors');
-const auth = require('./Routes/auth');
-require('dotenv').config();
-const app = express();
+const cookieParser = require('cookie-parser');
+const userRoute = require('./Routes/userRoute');
+const aiRoute = require('./Routes/aiRoute');
+const executeRoutes = require('./Routes/execute');
 
-app.use(cors());
+// Import Routes and Middleware
+
+const projectRoute = require('./Routes/projectRoute'); 
+const { checkForAuth, isLoggedIn } = require('./middleware/auth');
+
+
+const app = express();
+const PORT = process.env.PORT || 5000; // Fallback port
 
 // Connect to DB
 connectDB();
 
-// Init Middleware
+// Standard Middleware
+app.use(cors({
+    origin: "http://localhost:5173", // Allow your React Frontend
+    credentials: true // Allow cookies
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
-// Define Routes
-app.use("/auth", auth);
+// Custom Middleware
+// This function expects to return a middleware, make sure middleware/auth.js matches!
+app.use(checkForAuth("token")); 
 
-// Start the server
+// Routes
+app.use("/user", userRoute);
+app.use("/project",projectRoute);
+app.use("/ai",aiRoute);
+app.use('/execute', executeRoutes);
 
 
-
-app.listen(process.env.PORT, () => {
-    console.log(`Server started on port ${process.env.PORT}`);
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
 });
